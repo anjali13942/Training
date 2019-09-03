@@ -24,3 +24,47 @@ Unlike the RANK and DENSE_RANK functions, the ROW_NUMBER function simply returns
     power DESC) AS RowRank
     FROM Cars
 
+### COALESCE() Function
+
+The COALESCE() function returns the first non-null value in a list.
+>
+	SELECT  COALESCE
+	(NULL,  1,  2,  'text');
+
+### GENERATE_SERIES() Function
+
+ - generate_series(start,stop):
+
+Generate a series of values, from  start  to  stop  with a step size of one
+>
+	SELECT * FROM generate_series(2,4);
+	 generate_series
+	-----------------
+	               2
+	               3
+	               4
+
+ - generate_series(start,stop, step):
+
+Generate a series of values, from start to stop with a step size of step
+>
+	SELECT * FROM generate_series(5,1,-2);
+	 generate_series
+	-----------------
+	               5
+	               3
+	               1
+
+### Lead() Function
+PostgreSQL `LEAD()` function provide access to a row that follows the current row at a specified physical offset.for comparing the value of the current row with the value of the row that following the current row.
+
+>
+	LEAD(expression [,offset [,default_value]]) 
+	OVER (
+	[PARTITION BY partition_expression, ... ]
+	ORDER BY sort_expression [ASC | DESC], ...
+	)
+
+
+
+
