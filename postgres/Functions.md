@@ -65,6 +65,42 @@ PostgreSQL `LEAD()` function provide access to a row that follows the current ro
 	ORDER BY sort_expression [ASC | DESC], ...
 	)
 
+### Lag() Function
+provides access to a row that comes before the current row at a specified physical offset. In other words, from the current row the `LAG()` function can access data of the previous row, or the row before the previous row, and so on.
+>
+	LAG(expression [,offset [,default_value]]) 
+	OVER (
+	    [PARTITION BY partition_expression, ... ]
+	    ORDER BY sort_expression [ASC | DESC], ...
+	)
+
+
+### FUNCTION 
+
+Creating a function:
+CREATE FUNCTION defines a new function. CREATE OR REPLACE FUNCTION will either create a new function, or replace an existing definition.
+>
+	CREATE FUNCTION dup(in int, out f1 int, out f2 text)
+	AS $$ SELECT $1, CAST($1 AS text) || ' is text' $$
+	LANGUAGE SQL;
+Calling a function:
+>
+	SELECT * FROM dup(42);
+
+### Filter function
+The `filter` clause extends aggregate functions (`sum`, `avg`, `count`, …) by an additional `where` clause. The result of the aggregate is built from only the rows that satisfy the additional `where` clause too.
+
+>
+	SELECT  
+	COUNT(*) AS unfiltered,  
+	COUNT(*) FILTER (WHERE i < 5) 
+	AS filtered
+	FROM generate_series(1,10) 
+	AS s(i);
+
+
+
+
 
 
 
