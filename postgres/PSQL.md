@@ -79,5 +79,28 @@ Solution:
 	where case when action = 'logged in' and lr='logged out' then 1 
 	when action = 'logged out'and lr='logged in' then 1 else 0  end = 0;
 
+6.Select employee details of the given employee ids
 
+>
+	CREATE OR REPLACE FUNCTION get_employee(my_argument integer[]) RETURNS
+	table(emp_id integer, name text, dept_id integer, mgr_id integer, salary integer, 
+	joining_date date, termination_date date) AS
+	$$
+	DECLARE
+	BEGIN
+	return QUERY SELECT * FROM employee where employee.emp_id = any(my_argument);
+	END;
+	$$ 
+	LANGUAGE plpgsql;
+>
+	select get_employee(ARRAY[1]);
 
+7.Get the Total working time and In time from swipe details of a user.
+>
+	select user_id,sum(log_time - lag) 
+	FILTER (WHERE action = 'logged out')
+	AS working_time,sum(log_time-lag)::time total_time from 
+	(select user_id,action,log_time,lag(log_time) 
+	over(partition by user_id order by user_id,log_time) as lag 
+	from swipe) as s where log_time::date = lag::date 
+	group by user_id,log_time::date;
