@@ -104,3 +104,39 @@ Solution:
 	over(partition by user_id order by user_id,log_time) as lag 
 	from swipe) as s where log_time::date = lag::date 
 	group by user_id,log_time::date;
+
+8.Generate a DDL Command for creating a table with the given schema and table name;
+
+	>CREATE OR REPLACE FUNCTION get_ddl(p_schema_name varchar, p_table_name varchar) RETURNS text AS
+	$$
+	DECLARE
+	p_table_ddl   text;
+	BEGIN
+	p_table_ddl:='CREATE TABLE '||p_schema_name||'.'||p_table_name||'(id integer)';
+	return p_table_ddl;
+	END;
+	$$ 
+	LANGUAGE plpgsql;
+
+9.Generate a DDL command to create a table with the properties of another table(same column type,constraints etc)
+>
+	CREATE OR REPLACE FUNCTION get_ddl(p_schema_name varchar, p_table_name varchar) RETURNS text AS
+			$$
+			DECLARE
+			p_table_ddl   text;
+			p_table_attrs text;
+			p_table_cons text;
+			BEGIN
+			select array_to_string(ARRAY_AGG(column_name||' '||data_type),',') as temp_col into p_table_attrs from information_schema.columns where 
+			TABLE_NAME=p_table_name;
+			SELECT array_to_string(ARRAY_AGG(c2.relname||' '||  pg_catalog.pg_get_constraintdef(con.oid, true)),', ADD CONSTRAINT ') into p_table_cons
+			FROM pg_catalog.pg_class c, pg_catalog.pg_class c2, pg_catalog.pg_index i
+			LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND conindid = i.indexrelid AND contype IN ('p','u','x'))
+	WHERE c.oid = '16464' AND c.oid = i.indrelid AND i.indexrelid = c2.oid;
+	p_table_ddl:='CREATE TABLE IF NOT EXISTS '||p_schema_name||'.'||p_table_name||'('||p_table_attrs||'); ALTER TABLE '||p_table_name||' ADD CONSTRAINT '||
+	p_table_cons;
+	return p_table_ddl;
+	END;
+	$$ 
+	LANGUAGE plpgsql;
+
