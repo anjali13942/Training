@@ -118,23 +118,41 @@ Solution:
 	$$ 
 	LANGUAGE plpgsql;
 
-9.Generate a DDL command to create a table with the properties of another table(same column type,constraints etc)
+9.Generate a DDL command to create a table with the properties of another table(same column type,constraints,default values etc)
 >
 	CREATE OR REPLACE FUNCTION get_ddl(p_schema_name varchar, p_table_name varchar) RETURNS text AS
-			$$
-			DECLARE
-			p_table_ddl   text;
-			p_table_attrs text;
-			p_table_cons text;
-			BEGIN
-			select array_to_string(ARRAY_AGG(column_name||' '||data_type),',') as temp_col into p_table_attrs from information_schema.columns where 
-			TABLE_NAME=p_table_name;
-			SELECT array_to_string(ARRAY_AGG(c2.relname||' '||  pg_catalog.pg_get_constraintdef(con.oid, true)),', ADD CONSTRAINT ') into p_table_cons
-			FROM pg_catalog.pg_class c, pg_catalog.pg_class c2, pg_catalog.pg_index i
-			LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND conindid = i.indexrelid AND contype IN ('p','u','x'))
-	WHERE c.oid = '16464' AND c.oid = i.indrelid AND i.indexrelid = c2.oid;
-	p_table_ddl:='CREATE TABLE IF NOT EXISTS '||p_schema_name||'.'||p_table_name||'('||p_table_attrs||'); ALTER TABLE '||p_table_name||' ADD CONSTRAINT '||
-	p_table_cons;
+	$$
+	DECLARE
+	p_table_ddl   text;
+	p_table_attrs1 text;
+	p_table_attrs2 text;
+	p_table_cons text;
+	p_reloid integer;
+	p_seq_gen text;
+	BEGIN
+	select array_to_string(ARRAY_AGG(p_schema_name||'.'||p_table_name||'_'||column_name||'_seq'),';CREATE SEQUENCE IF NOT EXISTS ')
+	INTO p_seq_gen from information_schema.columns where table_schema=p_schema_name and TABLE_NAME=p_table_name and column_default
+	LIKE '%nextval%';
+
+	select array_to_string(ARRAY_AGG(column_name||' '||data_type||' DEFAULT '||('nextval('''||p_schema_name||'.'||p_table_name||'_'||column_name||'_seq'')')),',') as temp_col into p_table_attrs1 from information_schema.columns where table_schema=p_schema_name 
+	and TABLE_NAME=p_table_name and column_default LIKE '%nextval%';
+
+	select array_to_string(ARRAY_AGG(column_name||' '||data_type),',ADD COLUMN ') as temp_col into p_table_attrs2 from 
+	information_schema.columns where table_schema=p_schema_name and TABLE_NAME=p_table_name and (column_default NOT LIKE
+	'%nextval%' OR column_default IS NULL );
+
+	select oid into p_reloid from pg_class where relname=p_table_name;
+
+	SELECT array_to_string(ARRAY_AGG(c2.relname||' '||
+	  pg_catalog.pg_get_constraintdef(con.oid, true)),', ADD CONSTRAINT ') into p_table_cons FROM pg_catalog.pg_class c,
+	  pg_catalog.pg_class c2, pg_catalog.pg_index i
+	  LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND conindid = i.indexrelid AND contype IN ('p','u','x'))
+	WHERE c.oid = p_reloid AND c.oid = i.indrelid AND i.indexrelid = c2.oid;
+
+
+	p_table_ddl:='CREATE SEQUENCE IF NOT EXISTS '||p_seq_gen||';CREATE TABLE IF NOT EXISTS '||p_schema_name||'.'||p_table_name||
+	'('||p_table_attrs1||');ALTER TABLE '||p_schema_name||'.'||p_table_name||' ADD COLUMN '||p_table_attrs2||';ALTER TABLE '||
+	p_schema_name||'.'||p_table_name||' ADD CONSTRAINT '||p_table_cons;
 	return p_table_ddl;
 	END;
 	$$ 
