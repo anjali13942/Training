@@ -98,8 +98,18 @@ The `filter` clause extends aggregate functions (`sum`, `avg`, `count`, …) by 
 	FROM generate_series(1,10) 
 	AS s(i);
 
+### Trigger function
 
+A trigger is a set of actions that are run automatically when a specified change operation (SQL INSERT, UPDATE, DELETE or TRUNCATE statement) is performed on a specified table
 
+>
+	CREATE [ CONSTRAINT ] TRIGGER name { BEFORE | AFTER | INSTEAD OF } { event [ OR ... ] }
+	    ON table_name
+	    [ FROM referenced_table_name ]
+	    [ NOT DEFERRABLE | [ DEFERRABLE ] { INITIALLY IMMEDIATE | INITIALLY DEFERRED } ]
+	    [ FOR [ EACH ] { ROW | STATEMENT } ]
+	    [ WHEN ( condition ) ]
+	    EXECUTE PROCEDURE function_name ( arguments )
 
 
 
