@@ -124,37 +124,97 @@ Solution:
 	$$
 	DECLARE
 	p_table_ddl   text;
-	p_table_attrs1 text;
 	p_table_attrs2 text;
 	p_table_cons text;
 	p_reloid integer;
-	p_seq_gen text;
+	p_seq_gen record;
+	p_index3 record;
+	p_index text;
+	p_index2 text;
+	P_acc_user text;
+
 	BEGIN
-	select array_to_string(ARRAY_AGG(p_schema_name||'.'||p_table_name||'_'||column_name||'_seq'),';CREATE SEQUENCE IF NOT EXISTS ')
-	INTO p_seq_gen from information_schema.columns where table_schema=p_schema_name and TABLE_NAME=p_table_name and column_default
-	LIKE '%nextval%';
 
-	select array_to_string(ARRAY_AGG(column_name||' '||data_type||' DEFAULT '||('nextval('''||p_schema_name||'.'||p_table_name||'_'||column_name||'_seq'')')),',') as temp_col into p_table_attrs1 from information_schema.columns where table_schema=p_schema_name 
-	and TABLE_NAME=p_table_name and column_default LIKE '%nextval%';
+	select array_to_string(ARRAY_AGG(p_schema_name||'.'||p_table_name||'_'||column_name||'_seq AS '||data_type),
+	';'||E'\n'||' CREATE SEQUENCE IF NOT EXISTS ') as a,
+	array_to_string(ARRAY_AGG(p_schema_name||'.'||p_table_name||'_'||column_name||'_seq OWNER TO '||table_catalog),
+	';'||E'\n'||'ALTER TABLE ') as b,
+	array_to_string(ARRAY_AGG(p_schema_name||'.'||p_table_name||'_'||column_name||'_seq OWNED BY '||p_schema_name||
+	'.'||p_table_name||'.'||column_name),';'||E'\n'||'ALTER SEQUENCE ') as c,
+	array_to_string(ARRAY_AGG(p_schema_name||'.'||p_table_name||' ALTER COLUMN '||column_name||' SET DEFAULT '||column_default),
+	';'||E'\n'||'ALTER TABLE ') as e
+	from information_schema.columns where table_schema=p_schema_name and TABLE_NAME=p_table_name and column_default
+	LIKE '%nextval%' INTO p_seq_gen;
 
-	select array_to_string(ARRAY_AGG(column_name||' '||data_type),',ADD COLUMN ') as temp_col into p_table_attrs2 from 
-	information_schema.columns where table_schema=p_schema_name and TABLE_NAME=p_table_name and (column_default NOT LIKE
-	'%nextval%' OR column_default IS NULL );
+	select array_to_string(ARRAY_AGG(column_name||' '||data_type||' '||
+	case when is_nullable='NO' then 'NOT NULL' when is_nullable='YES' then '' end||
+	case when column_default NOT LIKE '%nextval%' then 'DEFAULT '||column_default
+	when (column_default LIKE '%nextval%' or column_default IS NULL) then '' end),',') as temp_col
+	into p_table_attrs2 from  information_schema.columns where table_schema=p_schema_name 
+	and TABLE_NAME=p_table_name;
 
 	select oid into p_reloid from pg_class where relname=p_table_name;
 
-	SELECT array_to_string(ARRAY_AGG(c2.relname||' '||
-	  pg_catalog.pg_get_constraintdef(con.oid, true)),', ADD CONSTRAINT ') into p_table_cons FROM pg_catalog.pg_class c,
-	  pg_catalog.pg_class c2, pg_catalog.pg_index i
-	  LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND conindid = i.indexrelid AND contype IN ('p','u','x'))
-	WHERE c.oid = p_reloid AND c.oid = i.indrelid AND i.indexrelid = c2.oid;
+	SELECT array_to_string(ARRAY_AGG(c2.relname||' '||pg_catalog.pg_get_constraintdef(con.oid, true)),
+	';' ||E'\n'||'ALTER TABLE ONLY ' ||p_schema_name||'.'||p_table_name||
+	' ADD CONSTRAINT  ') into p_table_cons FROM pg_catalog.pg_class c, pg_catalog.pg_class c2,
+	 pg_catalog.pg_index i LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND
+	conindid = i.indexrelid AND contype IN ('p','u','x'))WHERE c.oid = p_reloid AND
+	 c.oid = i.indrelid AND i.indexrelid = c2.oid;
 
 
-	p_table_ddl:='CREATE SEQUENCE IF NOT EXISTS '||p_seq_gen||';CREATE TABLE IF NOT EXISTS '||p_schema_name||'.'||p_table_name||
-	'('||p_table_attrs1||');ALTER TABLE '||p_schema_name||'.'||p_table_name||' ADD COLUMN '||p_table_attrs2||';ALTER TABLE '||
-	p_schema_name||'.'||p_table_name||' ADD CONSTRAINT '||p_table_cons;
+	select array_to_string(ARRAY_AGG(s1||''),';'||E'\n'||'GRANT ') from 
+	(select (string_agg(privilege_type, ', ')||' on '||p_schema_name||'.'||p_table_name||' to '||grantee)
+	as s1 from information_schema.role_table_grants where table_name=p_table_name and 
+	table_schema=p_schema_name group by grantee)t into P_acc_user;
+
+
+	SELECT array_to_string(ARRAY_AGG(pg_catalog.pg_get_indexdef(i.indexrelid, 0, true)),';'||E'\n')  
+	FROM pg_catalog.pg_class c, pg_catalog.pg_class c2, pg_catalog.pg_index i
+	 LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND conindid = i.indexrelid 
+	AND contype IN ('p','u','x'))
+	WHERE c.oid = '16503' AND c.oid = i.indrelid AND i.indexrelid = c2.oid AND
+	(pg_catalog.pg_get_constraintdef(con.oid, true)  NOT LIKE '%PRIMARY KEY%' or
+	pg_catalog.pg_get_constraintdef(con.oid, true) is null) into p_index;
+
+	SELECT REPLACE(p_index,'INDEX','INDEX IF NOT EXISTS') INTO p_index2 ;
+
+	p_table_ddl:='CREATE TABLE IF NOT EXISTS '||p_schema_name||'.'||p_table_name||' ('||E'\n'||
+		     p_table_attrs2||E'\n'||');'||E'\n'||
+		     COALESCE('CREATE SEQUENCE IF NOT EXISTS '|| p_seq_gen.a ||';'||E'\n','')||
+		     COALESCE('ALTER TABLE '||p_seq_gen.b||';'||E'\n','')||
+		     COALESCE('ALTER SEQUENCE '|| p_seq_gen.c ||';'||E'\n','')||
+		     COALESCE('ALTER TABLE '||p_seq_gen.e||';'||E'\n','')||
+		     COALESCE('ALTER TABLE ONLY '||p_schema_name||'.'||p_table_name||' ADD CONSTRAINT  '
+		    ||p_table_cons||';'||E'\n','')||
+		    COALESCE('GRANT '||P_acc_user||';'||E'\n','')||COALESCE(p_index2,'');
+		  
 	return p_table_ddl;
 	END;
 	$$ 
 	LANGUAGE plpgsql;
+
+select * from get_ddl('test','account');
+Output :
+
+>
+	get_ddl | CREATE TABLE IF NOT EXISTS test.account (                                                                                                                +
+	        | user_id integer NOT NULL,username character varying DEFAULT 'aaa'::character varying,password character varying ,id integer NOT NULL,id2 integer NOT NULL+
+	        | );                                                                                                                                                       +
+	        | CREATE SEQUENCE IF NOT EXISTS test.account_id_seq AS integer;                                                                                            +
+	        |  CREATE SEQUENCE IF NOT EXISTS test.account_id2_seq AS integer;                                                                                          +
+	        | ALTER TABLE test.account_id_seq OWNER TO postgres;                                                                                                       +
+	        | ALTER TABLE test.account_id2_seq OWNER TO postgres;                                                                                                      +
+	        | ALTER SEQUENCE test.account_id_seq OWNED BY test.account.id;                                                                                             +
+	        | ALTER SEQUENCE test.account_id2_seq OWNED BY test.account.id2;                                                                                           +
+	        | ALTER TABLE test.account ALTER COLUMN id SET DEFAULT nextval('test.account_id_seq'::regclass);                                                           +
+	        | ALTER TABLE test.account ALTER COLUMN id2 SET DEFAULT nextval('test.account_id2_seq'::regclass);                                                         +
+	        | ALTER TABLE ONLY test.account ADD CONSTRAINT  account_pkey PRIMARY KEY (user_id);                                                                        +
+	        | ALTER TABLE ONLY test.account ADD CONSTRAINT  account_username_key UNIQUE (username);                                                                    +
+	        | GRANT UPDATE, SELECT, INSERT on test.account to dbuser;                                                                                                  +
+	        | GRANT DELETE, TRUNCATE, REFERENCES, TRIGGER, INSERT, SELECT, UPDATE on test.account to postgres;                                                         +
+	        | GRANT DELETE, TRUNCATE, REFERENCES, TRIGGER, UPDATE, SELECT, INSERT on test.account to test;                                                             +
+	        | CREATE UNIQUE INDEX IF NOT EXISTS account_username_key ON test.account USING btree (username);                                                           +
+	        | CREATE INDEX IF NOT EXISTS account_username_idx ON test.account USING btree (username);                                                                  +
+	        | CREATE INDEX IF NOT EXISTS account_username_idx1 ON test.account USING btree (username)
 
