@@ -120,7 +120,7 @@ Solution:
 
 9.Generate a DDL command to create a table with the properties of another table(same column type,constraints,default values etc)
 >
-	CREATE OR REPLACE FUNCTION get_ddl(p_schema_name varchar, p_table_name varchar) RETURNS text AS
+		CREATE OR REPLACE FUNCTION get_ddl(p_schema_name varchar, p_table_name varchar) RETURNS text AS
 	$$
 	DECLARE
 	p_table_ddl   text;
@@ -132,6 +132,9 @@ Solution:
 	p_index text;
 	p_index2 text;
 	P_acc_user text;
+	p_child_table text;
+	p_triggers text;
+	p_foriegn_key text;
 
 	BEGIN
 
@@ -149,7 +152,7 @@ Solution:
 	select array_to_string(ARRAY_AGG(column_name||' '||data_type||' '||
 	case when is_nullable='NO' then 'NOT NULL' when is_nullable='YES' then '' end||
 	case when column_default NOT LIKE '%nextval%' then 'DEFAULT '||column_default
-	when (column_default LIKE '%nextval%' or column_default IS NULL) then '' end),',') as temp_col
+	when (column_default LIKE '%nextval%' or column_default IS NULL) then '' end),','||E'\n') as temp_col
 	into p_table_attrs2 from  information_schema.columns where table_schema=p_schema_name 
 	and TABLE_NAME=p_table_name;
 
@@ -157,7 +160,7 @@ Solution:
 
 	SELECT array_to_string(ARRAY_AGG(c2.relname||' '||pg_catalog.pg_get_constraintdef(con.oid, true)),
 	';' ||E'\n'||'ALTER TABLE ONLY ' ||p_schema_name||'.'||p_table_name||
-	' ADD CONSTRAINT  ') into p_table_cons FROM pg_catalog.pg_class c, pg_catalog.pg_class c2,
+	E'\n'||' ADD CONSTRAINT  ') into p_table_cons FROM pg_catalog.pg_class c, pg_catalog.pg_class c2,
 	 pg_catalog.pg_index i LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND
 	conindid = i.indexrelid AND contype IN ('p','u','x'))WHERE c.oid = p_reloid AND
 	 c.oid = i.indrelid AND i.indexrelid = c2.oid;
@@ -173,22 +176,41 @@ Solution:
 	FROM pg_catalog.pg_class c, pg_catalog.pg_class c2, pg_catalog.pg_index i
 	 LEFT JOIN pg_catalog.pg_constraint con ON (conrelid = i.indrelid AND conindid = i.indexrelid 
 	AND contype IN ('p','u','x'))
-	WHERE c.oid = '16503' AND c.oid = i.indrelid AND i.indexrelid = c2.oid AND
+	WHERE c.oid = p_reloid AND c.oid = i.indrelid AND i.indexrelid = c2.oid AND
 	(pg_catalog.pg_get_constraintdef(con.oid, true)  NOT LIKE '%PRIMARY KEY%' or
 	pg_catalog.pg_get_constraintdef(con.oid, true) is null) into p_index;
 
 	SELECT REPLACE(p_index,'INDEX','INDEX IF NOT EXISTS') INTO p_index2 ;
 
+	SELECT array_to_string(ARRAY_AGG(c.oid::pg_catalog.regclass||'() INHERITS ('||
+	p_schema_name||'.'||p_table_name||')'),';'||E'\n'||' CREATE TABLE IF NOT EXISTS ') 
+	FROM pg_catalog.pg_class c, pg_catalog.pg_inherits i WHERE c.oid=i.inhrelid AND
+	i.inhparent = p_reloid INTO p_child_table;
+
+
+	SELECT  array_to_string(ARRAY_AGG(pg_catalog.pg_get_triggerdef(t.oid, true)||''),';'||E'\n')
+	FROM pg_catalog.pg_trigger t
+	WHERE t.tgrelid = p_reloid AND (NOT t.tgisinternal OR (t.tgisinternal AND t.tgenabled = 'D'))
+	ORDER BY 1 into p_triggers;
+
+	SELECT array_to_string(ARRAY_AGG(p_schema_name||'.'||p_table_name||E'\n'||' ADD CONSTRAINT '||conname||' '||pg_catalog.pg_get_constraintdef(r.oid, true)),';') as condef
+	FROM pg_catalog.pg_constraint r
+	WHERE r.conrelid = p_reloid AND r.contype = 'f' ORDER BY 1 into p_foriegn_key;
+
+
 	p_table_ddl:='CREATE TABLE IF NOT EXISTS '||p_schema_name||'.'||p_table_name||' ('||E'\n'||
-		     p_table_attrs2||E'\n'||');'||E'\n'||
-		     COALESCE('CREATE SEQUENCE IF NOT EXISTS '|| p_seq_gen.a ||';'||E'\n','')||
-		     COALESCE('ALTER TABLE '||p_seq_gen.b||';'||E'\n','')||
-		     COALESCE('ALTER SEQUENCE '|| p_seq_gen.c ||';'||E'\n','')||
-		     COALESCE('ALTER TABLE '||p_seq_gen.e||';'||E'\n','')||
-		     COALESCE('ALTER TABLE ONLY '||p_schema_name||'.'||p_table_name||' ADD CONSTRAINT  '
-		    ||p_table_cons||';'||E'\n','')||
-		    COALESCE('GRANT '||P_acc_user||';'||E'\n','')||COALESCE(p_index2,'');
-		  
+		p_table_attrs2||E'\n'||');'||E'\n'||
+		COALESCE('CREATE SEQUENCE IF NOT EXISTS '|| p_seq_gen.a ||';'||E'\n','')||
+		COALESCE('ALTER TABLE '||p_seq_gen.b||';'||E'\n','')||
+		COALESCE('ALTER SEQUENCE '|| p_seq_gen.c ||';'||E'\n','')||
+		COALESCE('ALTER TABLE '||p_seq_gen.e||';'||E'\n','')||
+		COALESCE('ALTER TABLE ONLY '||p_schema_name||'.'||p_table_name||E'\n'||' ADD CONSTRAINT  '
+		||p_table_cons||';'||E'\n','')||
+		COALESCE('GRANT '||P_acc_user||';'||E'\n','')||COALESCE(p_index2,'')||E'\n'||
+		COALESCE('ALTER TABLE '||p_foriegn_key||';'||E'\n','')||
+		COALESCE(p_triggers||';'||E'\n','')||
+		COALESCE('CREATE TABLE IF NOT EXISTS '||p_child_table,'');
+
 	return p_table_ddl;
 	END;
 	$$ 
@@ -217,4 +239,137 @@ Output :
 	        | CREATE UNIQUE INDEX IF NOT EXISTS account_username_key ON test.account USING btree (username);                                                           +
 	        | CREATE INDEX IF NOT EXISTS account_username_idx ON test.account USING btree (username);                                                                  +
 	        | CREATE INDEX IF NOT EXISTS account_username_idx1 ON test.account USING btree (username)
+
+
+
+
+
+10. Update timestamp in a table for insert update and delete operations in another table using triggers
+->Create function for trigger operation
+>
+	CREATE OR REPLACE FUNCTION rec_insert()
+	  RETURNS trigger AS
+	$$
+	BEGIN
+	IF (TG_OP = 'INSERT') THEN
+	         INSERT INTO emp_log(emp_id,salary,edittime)
+	         VALUES(NEW.employee_id,NEW.salary,now()); 
+	    	RETURN NEW;
+	ELSIF (TG_OP = 'UPDATE') THEN
+	 	INSERT INTO emp_log(emp_id,salary,edittime)
+	        VALUES(NEW.employee_id,NEW.salary,now());
+	    	RETURN NEW;
+	ELSIF (TG_OP = 'DELETE') THEN
+		INSERT INTO emp_log(emp_id,salary,edittime)
+	         VALUES(OLD.employee_id,OLD.salary,now());
+	    	RETURN OLD;
+	END IF;
+	        RETURN NULL; 
+	END;
+	$$
+	LANGUAGE 'plpgsql';
+
+->Create trigger for the table
+
+>
+	CREATE TRIGGER delete_same_rec
+	  AFTER INSERT OR UPDATE OR DELETE
+	  ON emp_details
+	  FOR EACH ROW
+	  EXECUTE PROCEDURE rec_insert();
+On insert ,update and delete operations the trigger will work updating time stamp on emp_log.
+>
+	 emp_id | salary |          edittime          
+	--------+--------+----------------------------
+	      3 |  33545 | 2019-09-20 00:00:00
+	      9 |   6458 | 2019-09-23 11:01:38.041793
+	      7 |   6458 | 2019-09-23 11:38:50.365744
+
+
+11.Create a function to display the trigger details of table from given table name and schema name.
+>
+	CREATE OR REPLACE FUNCTION get_trigger(p_schema_name varchar, p_table_name varchar) RETURNS text AS
+	$$
+	DECLARE
+	p_table_tgr text;
+	trigger_name text;
+	p_reloid integer;
+	BEGIN
+		select oid into p_reloid from pg_class where relname=p_table_name;
+
+		SELECT  array_to_string(ARRAY_AGG(pg_catalog.pg_get_triggerdef(t.oid, true)
+		||''),';'||E'\n')
+		FROM pg_catalog.pg_trigger t
+		WHERE t.tgrelid = p_reloid 
+		AND (NOT t.tgisinternal OR (t.tgisinternal AND t.tgenabled = 'D'))
+		ORDER BY 1 into trigger_name;
+
+		p_table_tgr:='Triggers'||E'\n'||trigger_name;	  
+		return p_table_tgr;
+	END;
+	$$ 
+	LANGUAGE plpgsql;
+12.Insert state details into corresponding  stateinfo table according to the stateid using triggers.
+
+create table states with columns id and name.
+create table states_info with id,state_id(foriegn key reference to id in state), city ,sqft ,population.
+->Using Inheritance create child classes with the parameters of states_info;
+
+>
+	CREATE TABLE tamilnadu(
+	) INHERITS (states_info);
+	CREATE TABLE kerala(
+	) INHERITS (states_info);
+->Create trigger  function to insert details into corresponding state table 
+>
+	CREATE OR REPLACE FUNCTION insert_info()
+	  RETURNS trigger AS
+	$$
+	BEGIN
+	IF (TG_OP = 'INSERT') THEN
+		IF (NEW.state_id = 1) THEN
+			INSERT INTO kerala
+	         	VALUES(NEW.*);
+	    	 	RETURN NULL;
+		ELSIF (NEW.state_id =2) THEN
+			INSERT INTO tamilnadu
+	         	VALUES(NEW.*);
+	    	 	RETURN NULL;
+		END IF;
+	        	RETURN NULL;
+
+	END IF;
+	        RETURN NULL; 
+	END;
+	$$
+	LANGUAGE 'plpgsql';
+->Create trigger for the table using the function.Here we use 'BEFORE' trigger
+>
+	CREATE TRIGGER state_info_rec
+	  BEFORE INSERT OR UPDATE OR DELETE
+	  ON states_info
+	  FOR EACH ROW
+	  EXECUTE PROCEDURE insert_info();
+
+>
+
+	postgres=# select * from kerala;
+	 id | state_id |   city   | population 
+	----+----------+----------+------------
+	  1 |        1 | Palakkad |      35551
+	  2 |        1 | Kochi    |      62551
+
+	postgres=# select * from tamilnadu;
+	 id | state_id |  city   | population 
+	----+----------+---------+------------
+	  1 |        2 | chennai |      23434
+	  
+	postgres=# select * from states_info;
+	 id | state_id |   city   | population 
+	----+----------+----------+------------
+	  1 |        2 | chennai  |      23434
+	  1 |        1 | Palakkad |      35551
+	  2 |        1 | Kochi    |      62551
+
+
 
