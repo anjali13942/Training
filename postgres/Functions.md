@@ -112,5 +112,40 @@ A trigger is a set of actions that are run automatically when a specified change
 	    EXECUTE PROCEDURE function_name ( arguments )
 
 
+### Performing Set Operations
 
+#### UNION operator
+>
+	SELECT
+	   column_1,
+	   column_2
+	FROM
+	   tbl_name_1
+	UNION
+	SELECT
+	   column_1,
+	   column_2
+	FROM
+	   tbl_name_2;
+#### INTERSECT operator
+>
+	SELECT
+	   column_list
+	FROM
+	   A
+	INTERSECT
+	SELECT
+	   column_list
+	FROM
+	   B;
+
+#### EXCEPT operator
+>
+	SELECT column_list
+	FROM A
+	WHERE condition_a
+	EXCEPT 
+	SELECT column_list
+	FROM B
+	WHERE condition_b;
 
