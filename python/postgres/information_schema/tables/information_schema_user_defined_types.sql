@@ -1,0 +1,33 @@
+CREATE TABLE IF NOT EXISTS information_schema.user_defined_types (
+user_defined_type_catalog character varying ,
+user_defined_type_schema character varying ,
+user_defined_type_name character varying ,
+user_defined_type_category character varying ,
+is_instantiable character varying ,
+is_final character varying ,
+ordering_form character varying ,
+ordering_category character varying ,
+ordering_routine_catalog character varying ,
+ordering_routine_schema character varying ,
+ordering_routine_name character varying ,
+reference_type character varying ,
+data_type character varying ,
+character_maximum_length integer ,
+character_octet_length integer ,
+character_set_catalog character varying ,
+character_set_schema character varying ,
+character_set_name character varying ,
+collation_catalog character varying ,
+collation_schema character varying ,
+collation_name character varying ,
+numeric_precision integer ,
+numeric_precision_radix integer ,
+numeric_scale integer ,
+datetime_precision integer ,
+interval_type character varying ,
+interval_precision integer ,
+source_dtd_identifier character varying ,
+ref_dtd_identifier character varying 
+);
+GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER on information_schema.user_defined_types to postgres;
+GRANT SELECT on information_schema.user_defined_types to PUBLIC;
