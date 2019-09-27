@@ -15,3 +15,9 @@ ALTER TABLE test.a ALTER COLUMN id SET DEFAULT nextval('test.a_id_seq1'::regclas
 GRANT INSERT, SELECT, UPDATE, , TRUNCATE, REFERENCES, TRIGGER on test.a to postgres;
 ALTER TABLE test.a ALTER COLUMN id SET DEFAULT nextval('test.a_id_seq1'::regclass);
 GRANT INSERT, SELECT, UPDATE, , TRUNCATE, REFERENCES, TRIGGER on test.a to postgres;
+ALTER TABLE test.a ALTER COLUMN id SET DEFAULT nextval('test.a_id_seq1'::regclass);
+G
+LTER TABLE test.a ALTER COLUMN id SET DEFAULT nextval('test.a_id_seq1'::regclass);
+GRANT INSERT, SELECT, UPDATE, , TRUNCATE, REFERENCES, TRIGGER on test.a to postgres;
+ALTER TABLE test.a ALTER COLUMN id SET DEFAULT nextval('test.a_id_seq1'::regclass);
+G
