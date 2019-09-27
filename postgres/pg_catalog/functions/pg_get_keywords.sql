@@ -1,0 +1,9 @@
+CREATE OR REPLACE FUNCTION pg_catalog.pg_get_keywords(OUT word text, OUT catcode "char", OUT catdesc text)
+ RETURNS SETOF record
+ LANGUAGE internal
+ STABLE PARALLEL SAFE STRICT COST 10 ROWS 400
+AS $function$pg_get_keywords$function$
+
+;
+ALTER function pg_get_keywords() OWNER TO postgres;
+GRANT execute on function pg_get_keywords() to postgres;

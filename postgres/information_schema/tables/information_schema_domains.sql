@@ -1,0 +1,31 @@
+CREATE TABLE IF NOT EXISTS information_schema.domains (
+domain_catalog character varying ,
+domain_schema character varying ,
+domain_name character varying ,
+data_type character varying ,
+character_maximum_length integer ,
+character_octet_length integer ,
+character_set_catalog character varying ,
+character_set_schema character varying ,
+character_set_name character varying ,
+collation_catalog character varying ,
+collation_schema character varying ,
+collation_name character varying ,
+numeric_precision integer ,
+numeric_precision_radix integer ,
+numeric_scale integer ,
+datetime_precision integer ,
+interval_type character varying ,
+interval_precision integer ,
+domain_default character varying ,
+udt_catalog character varying ,
+udt_schema character varying ,
+udt_name character varying ,
+scope_catalog character varying ,
+scope_schema character varying ,
+scope_name character varying ,
+maximum_cardinality integer ,
+dtd_identifier character varying 
+);
+GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER on information_schema.domains to postgres;
+GRANT SELECT on information_schema.domains to PUBLIC;

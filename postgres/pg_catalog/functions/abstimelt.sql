@@ -1,0 +1,9 @@
+CREATE OR REPLACE FUNCTION pg_catalog.abstimelt(abstime, abstime)
+ RETURNS boolean
+ LANGUAGE internal
+ IMMUTABLE PARALLEL SAFE STRICT LEAKPROOF
+AS $function$abstimelt$function$
+
+;
+ALTER function abstimelt(abstime, abstime) OWNER TO postgres;
+GRANT execute on function abstimelt(abstime, abstime) to postgres;

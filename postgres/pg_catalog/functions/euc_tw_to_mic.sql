@@ -1,0 +1,9 @@
+CREATE OR REPLACE FUNCTION pg_catalog.euc_tw_to_mic(integer, integer, cstring, internal, integer)
+ RETURNS void
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/euc_tw_and_big5', $function$euc_tw_to_mic$function$
+
+;
+ALTER function euc_tw_to_mic(integer, integer, cstring, internal, integer) OWNER TO postgres;
+GRANT execute on function euc_tw_to_mic(integer, integer, cstring, internal, integer) to postgres;

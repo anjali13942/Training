@@ -1,0 +1,9 @@
+CREATE OR REPLACE FUNCTION pg_catalog.hashinet(inet)
+ RETURNS integer
+ LANGUAGE internal
+ IMMUTABLE PARALLEL SAFE STRICT
+AS $function$hashinet$function$
+
+;
+ALTER function hashinet(inet) OWNER TO postgres;
+GRANT execute on function hashinet(inet) to postgres;
