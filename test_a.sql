@@ -12,4 +12,6 @@ CREATE SEQUENCE IF NOT EXISTS test.a_id_seq
 ALTER TABLE test.a_id_seq OWNER TO postgres;
 ALTER SEQUENCE test.a_id_seq OWNED BY test.a.id;
 ALTER TABLE test.a ALTER COLUMN id SET DEFAULT nextval('test.a_id_seq1'::regclass);
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER on test.a to postgres;
+GRANT INSERT, SELECT, UPDATE, , TRUNCATE, REFERENCES, TRIGGER on test.a to postgres;
+ALTER TABLE test.a ALTER COLUMN id SET DEFAULT nextval('test.a_id_seq1'::regclass);
+GRANT INSERT, SELECT, UPDATE, , TRUNCATE, REFERENCES, TRIGGER on test.a to postgres;
