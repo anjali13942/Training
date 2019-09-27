@@ -27,3 +27,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS account_username_key ON test.account USING btr
 CREATE INDEX IF NOT EXISTS account_username_idx ON test.account USING btree (username);
 CREATE INDEX IF NOT EXISTS account_username_idx1 ON test.account USING btree (username)
 CREATE TABLE IF NOT EXISTS auditing() INHERITS (test.account)"
+
+TE INDEX IF NOT EXISTS account_username_idx1 ON test.account USING btree (username)
+CREATE TABLE IF NOT EXISTS auditing() INHERITS (test.account)"
